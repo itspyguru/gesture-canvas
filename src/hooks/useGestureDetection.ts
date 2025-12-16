@@ -1,9 +1,10 @@
 import { useCallback, useRef } from 'react'
 import type { Point } from '../types'
-import { isPinching, getDrawingPoint } from '../utils/gestures'
+import { isPinching, getDrawingPoint, isOpenPalm } from '../utils/gestures'
 import { mapCameraToCanvas } from '../utils/coordinates'
 import { PointSmoother } from '../utils/smoothing'
 import { useGestureStore } from '../stores/gestureStore'
+import { useToolStore } from '../stores/toolStore'
 
 interface UseGestureDetectionOptions {
   canvasWidth: number;
@@ -18,17 +19,19 @@ export function useGestureDetection(options: UseGestureDetectionOptions) {
   const {
     canvasWidth,
     canvasHeight,
-    pinchThreshold = 0.08, // Increased threshold for easier detection
+    pinchThreshold = 0.08,
     onDrawingStart,
     onDrawingMove,
     onDrawingEnd,
   } = options;
 
-  const smoother = useRef(new PointSmoother(3)); // Reduced buffer for faster response
+  const smoother = useRef(new PointSmoother(3));
   const isDrawingMode = useRef(false);
   const wasPinching = useRef(false);
+  const wasOpenPalm = useRef(false);
   const lastPinchToggle = useRef(0);
-  const DEBOUNCE_MS = 300; // Prevent rapid toggling
+  const lastPalmToggle = useRef(0);
+  const DEBOUNCE_MS = 300;
 
   const {
     setGestureState,
@@ -36,12 +39,13 @@ export function useGestureDetection(options: UseGestureDetectionOptions) {
     setIsPinching,
   } = useGestureStore();
 
+  const { tool, setTool } = useToolStore();
+
   const processLandmarks = useCallback((landmarks: Point[] | null) => {
     if (!landmarks) {
       setGestureState('idle');
       setCursorPosition(null);
       setIsPinching(false);
-      // Don't end drawing when hand temporarily lost - give user a chance to recover
       return;
     }
 
@@ -49,26 +53,41 @@ export function useGestureDetection(options: UseGestureDetectionOptions) {
     if (!drawingPoint) return;
 
     const canvasPoint = mapCameraToCanvas(drawingPoint, canvasWidth, canvasHeight);
-    const smoothedPoint = smoother.current.addPoint(canvasPoint);
 
+    // Clamp cursor position to canvas bounds with padding
+    const padding = 10;
+    const clampedPoint = {
+      x: Math.max(padding, Math.min(canvasWidth - padding, canvasPoint.x)),
+      y: Math.max(padding, Math.min(canvasHeight - padding, canvasPoint.y)),
+    };
+
+    const smoothedPoint = smoother.current.addPoint(clampedPoint);
     setCursorPosition(smoothedPoint);
 
     const currentlyPinching = isPinching(landmarks, pinchThreshold);
+    const currentlyOpenPalm = isOpenPalm(landmarks);
     setIsPinching(currentlyPinching);
 
     const now = Date.now();
 
+    // Detect open palm gesture for eraser toggle
+    if (currentlyOpenPalm && !wasOpenPalm.current && (now - lastPalmToggle.current > DEBOUNCE_MS)) {
+      lastPalmToggle.current = now;
+      // Toggle between pen and eraser
+      setTool(tool === 'eraser' ? 'pen' : 'eraser');
+    }
+    wasOpenPalm.current = currentlyOpenPalm;
+
     // Detect pinch toggle (transition from not pinching to pinching)
-    if (currentlyPinching && !wasPinching.current && (now - lastPinchToggle.current > DEBOUNCE_MS)) {
+    // Don't trigger if palm is open
+    if (currentlyPinching && !wasPinching.current && !currentlyOpenPalm && (now - lastPinchToggle.current > DEBOUNCE_MS)) {
       lastPinchToggle.current = now;
 
       if (!isDrawingMode.current) {
-        // Start drawing mode
         isDrawingMode.current = true;
         smoother.current.reset();
         onDrawingStart?.();
       } else {
-        // Stop drawing mode
         isDrawingMode.current = false;
         onDrawingEnd?.();
       }
@@ -76,7 +95,6 @@ export function useGestureDetection(options: UseGestureDetectionOptions) {
 
     wasPinching.current = currentlyPinching;
 
-    // Update gesture state based on drawing mode
     if (isDrawingMode.current) {
       setGestureState('drawing');
       onDrawingMove?.(smoothedPoint);
@@ -87,6 +105,8 @@ export function useGestureDetection(options: UseGestureDetectionOptions) {
     canvasWidth,
     canvasHeight,
     pinchThreshold,
+    tool,
+    setTool,
     setGestureState,
     setCursorPosition,
     setIsPinching,

@@ -64,3 +64,34 @@ export function getDrawingPoint(landmarks: Point[]): Point | null {
   // Use index finger tip for drawing
   return getIndexFingerTip(landmarks);
 }
+
+export function isOpenPalm(landmarks: Point[]): boolean {
+  if (landmarks.length < 21) return false;
+
+  // Check if all 5 fingers are extended
+  // A finger is extended if its tip is above (lower y) its PIP joint
+  const fingers = [
+    // Thumb: compare tip to IP joint (different structure)
+    { tip: LANDMARKS.THUMB_TIP, base: LANDMARKS.THUMB_IP },
+    // Other fingers: compare tip to PIP joint
+    { tip: LANDMARKS.INDEX_TIP, base: LANDMARKS.INDEX_PIP },
+    { tip: LANDMARKS.MIDDLE_TIP, base: LANDMARKS.MIDDLE_PIP },
+    { tip: LANDMARKS.RING_TIP, base: LANDMARKS.RING_PIP },
+    { tip: LANDMARKS.PINKY_TIP, base: LANDMARKS.PINKY_PIP },
+  ];
+
+  let extendedCount = 0;
+
+  for (const finger of fingers) {
+    const tip = landmarks[finger.tip];
+    const base = landmarks[finger.base];
+
+    // Finger is extended if tip is higher (lower y value) than base
+    if (tip.y < base.y) {
+      extendedCount++;
+    }
+  }
+
+  // All 5 fingers must be extended
+  return extendedCount >= 5;
+}
