@@ -8,9 +8,11 @@ export function useDrawing() {
   const currentPoints = useRef<number[]>([]);
 
   const { startStroke, updateCurrentStroke, endStroke } = useCanvasStore();
-  const { tool, color, width, opacity } = useToolStore();
 
   const handleDrawingStart = useCallback(() => {
+    // Get current tool settings at the moment of drawing start
+    const { tool, color, width, opacity } = useToolStore.getState();
+
     currentPoints.current = [];
     startStroke({
       points: [],
@@ -19,7 +21,7 @@ export function useDrawing() {
       opacity: tool === 'eraser' ? 100 : opacity,
       tool,
     });
-  }, [startStroke, tool, color, width, opacity]);
+  }, [startStroke]);
 
   const handleDrawingMove = useCallback((point: Point) => {
     currentPoints.current.push(point.x, point.y);

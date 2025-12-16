@@ -39,8 +39,6 @@ export function useGestureDetection(options: UseGestureDetectionOptions) {
     setIsPinching,
   } = useGestureStore();
 
-  const { tool, setTool } = useToolStore();
-
   const processLandmarks = useCallback((landmarks: Point[] | null) => {
     if (!landmarks) {
       setGestureState('idle');
@@ -73,8 +71,9 @@ export function useGestureDetection(options: UseGestureDetectionOptions) {
     // Detect open palm gesture for eraser toggle
     if (currentlyOpenPalm && !wasOpenPalm.current && (now - lastPalmToggle.current > DEBOUNCE_MS)) {
       lastPalmToggle.current = now;
-      // Toggle between pen and eraser
-      setTool(tool === 'eraser' ? 'pen' : 'eraser');
+      // Get current tool and toggle - use getState() to always get fresh value
+      const currentTool = useToolStore.getState().tool;
+      useToolStore.getState().setTool(currentTool === 'eraser' ? 'pen' : 'eraser');
     }
     wasOpenPalm.current = currentlyOpenPalm;
 
@@ -105,8 +104,6 @@ export function useGestureDetection(options: UseGestureDetectionOptions) {
     canvasWidth,
     canvasHeight,
     pinchThreshold,
-    tool,
-    setTool,
     setGestureState,
     setCursorPosition,
     setIsPinching,

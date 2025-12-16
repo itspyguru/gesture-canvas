@@ -14,7 +14,7 @@ export function SettingsPanel({ onExport }: SettingsPanelProps) {
   const canRedo = historyIndex < history.length - 1;
 
   return (
-    <div className="w-[280px] bg-panel-dark h-full flex flex-col overflow-hidden">
+    <div className="w-[320px] bg-panel-dark h-full flex flex-col overflow-hidden">
       <div className="p-4 border-b border-gray-700">
         <h1 className="text-xl font-bold text-white">AirDraw</h1>
         <p className="text-xs text-gray-500">Gesture-Controlled Drawing</p>
