@@ -18,14 +18,17 @@ export function useGestureDetection(options: UseGestureDetectionOptions) {
   const {
     canvasWidth,
     canvasHeight,
-    pinchThreshold = 0.06,
+    pinchThreshold = 0.08, // Increased threshold for easier detection
     onDrawingStart,
     onDrawingMove,
     onDrawingEnd,
   } = options;
 
-  const smoother = useRef(new PointSmoother(5));
-  const wasDrawing = useRef(false);
+  const smoother = useRef(new PointSmoother(3)); // Reduced buffer for faster response
+  const isDrawingMode = useRef(false);
+  const wasPinching = useRef(false);
+  const lastPinchToggle = useRef(0);
+  const DEBOUNCE_MS = 300; // Prevent rapid toggling
 
   const {
     setGestureState,
@@ -38,12 +41,7 @@ export function useGestureDetection(options: UseGestureDetectionOptions) {
       setGestureState('idle');
       setCursorPosition(null);
       setIsPinching(false);
-
-      if (wasDrawing.current) {
-        wasDrawing.current = false;
-        smoother.current.reset();
-        onDrawingEnd?.();
-      }
+      // Don't end drawing when hand temporarily lost - give user a chance to recover
       return;
     }
 
@@ -55,26 +53,35 @@ export function useGestureDetection(options: UseGestureDetectionOptions) {
 
     setCursorPosition(smoothedPoint);
 
-    const pinching = isPinching(landmarks, pinchThreshold);
-    setIsPinching(pinching);
+    const currentlyPinching = isPinching(landmarks, pinchThreshold);
+    setIsPinching(currentlyPinching);
 
-    if (pinching) {
-      setGestureState('drawing');
+    const now = Date.now();
 
-      if (!wasDrawing.current) {
-        wasDrawing.current = true;
+    // Detect pinch toggle (transition from not pinching to pinching)
+    if (currentlyPinching && !wasPinching.current && (now - lastPinchToggle.current > DEBOUNCE_MS)) {
+      lastPinchToggle.current = now;
+
+      if (!isDrawingMode.current) {
+        // Start drawing mode
+        isDrawingMode.current = true;
+        smoother.current.reset();
         onDrawingStart?.();
+      } else {
+        // Stop drawing mode
+        isDrawingMode.current = false;
+        onDrawingEnd?.();
       }
+    }
 
+    wasPinching.current = currentlyPinching;
+
+    // Update gesture state based on drawing mode
+    if (isDrawingMode.current) {
+      setGestureState('drawing');
       onDrawingMove?.(smoothedPoint);
     } else {
       setGestureState('detected');
-
-      if (wasDrawing.current) {
-        wasDrawing.current = false;
-        smoother.current.reset();
-        onDrawingEnd?.();
-      }
     }
   }, [
     canvasWidth,

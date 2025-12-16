@@ -82,11 +82,13 @@ export function AppLayout() {
 
         {/* Instructions overlay - shows on first load */}
         {!error && !isLoading && (
-          <div className="absolute bottom-4 right-4 bg-panel-dark/80 text-white text-sm p-3 rounded-lg max-w-xs">
-            <p className="font-medium mb-1">How to draw:</p>
-            <p className="text-gray-300 text-xs">
-              Pinch your thumb and index finger to draw. Release to stop.
-            </p>
+          <div className="absolute bottom-4 right-4 bg-panel-dark/90 text-white text-sm p-4 rounded-lg max-w-xs shadow-xl">
+            <p className="font-semibold mb-2">How to draw:</p>
+            <ul className="text-gray-300 text-xs space-y-1">
+              <li><span className="text-accent-success font-medium">Pinch once</span> → Start drawing</li>
+              <li><span className="text-white">Move hand</span> → Draw continuously</li>
+              <li><span className="text-accent-destructive font-medium">Pinch again</span> → Stop drawing</li>
+            </ul>
           </div>
         )}
       </div>
